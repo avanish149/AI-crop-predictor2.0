@@ -115,6 +115,32 @@ with st.form("prediction_form"):
 default_rates = 25.5
 default_yield = 3850
 
+# Mapping crop -> (rate, yield)
+crop_data = {
+    "rice":        (25.5, 3850),
+    "maize":       (18.2, 4200),
+    "chickpea":    (65.0, 850),
+    "kidneybeans": (45.0, 2800),
+    "pigeonpeas":  (70.0, 720),
+    "mothbeans":   (55.0, 450),
+    "mungbean":    (60.0, 500),
+    "blackgram":   (58.0, 480),
+    "lentil":      (62.0, 950),
+    "pomegranate": (80.0, 22000),
+    "banana":      (35.0, 35000),
+    "mango":       (45.0, 8500),
+    "grapes":      (120.0, 22000),
+    "watermelon":  (12.0, 25000),
+    "muskmelon":   (15.0, 28000),
+    "apple":       (150.0, 20000),
+    "orange":      (40.0, 15000),
+    "papaya":      (25.0, 35000),
+    "coconut":     (30.0, 14000),
+    "cotton":      (120.0, 800),
+    "jute":        (35.0, 2500),
+    "coffee":      (200.0, 1200),
+}
+
 # -------------------------------------------------
 # 5) Prediction
 # -------------------------------------------------
@@ -126,13 +152,21 @@ if submit:
                  "ph", "rainfall", "rates", "yield"],
     )
     pred = model.predict(input_df)[0]
-    st.success(f"Recommended Crop: {pred}")
+    crop_key = str(pred).strip().lower()
+    rate, yld = crop_data.get(crop_key, (default_rates, default_yield))
+
+    st.success(
+        f"Recommended crop: {pred}\n"
+        f"Estimated market rate: {rate:.1f} ₹/kg\n"
+        f"Estimated yield: {yld:.0f} kg/ha"
+    )
 
 # -------------------------------------------------
 # 6) Basic statistics
 # -------------------------------------------------
 st.subheader("Basic Dataset Statistics")
 st.write(data.describe())
+
 
 
 
