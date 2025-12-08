@@ -9,7 +9,14 @@ import pickle
 # 1) Page setup
 # -------------------------------------------------
 st.title("AI Crop Predictor Dashboard")
-st.write("View the data and try out crop predictions interactively!")
+st.write(
+    "This dashboard uses a machine‑learning model trained on soil nutrients, "
+    "weather conditions, and historical crop records to recommend the most "
+    "suitable crop for your field. Enter values for nitrogen, phosphorus, "
+    "potassium, temperature, humidity, pH, and rainfall to see the suggested "
+    "crop along with an estimated market rate and expected yield."
+)
+
 
 DATAFILE = "crop_recommendation.csv"
 MODELFILE = "crop_model.pkl"
@@ -188,6 +195,7 @@ if submit:
 # -------------------------------------------------
 st.subheader("Basic Dataset Statistics")
 st.write(data.describe())
+
 
 
 
