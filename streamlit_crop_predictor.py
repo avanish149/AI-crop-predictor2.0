@@ -164,7 +164,7 @@ if submit:
     </div>
     """,
     unsafe_allow_html=True,
-)
+
 
     )
 
@@ -173,6 +173,7 @@ if submit:
 # -------------------------------------------------
 st.subheader("Basic Dataset Statistics")
 st.write(data.describe())
+
 
 
 
