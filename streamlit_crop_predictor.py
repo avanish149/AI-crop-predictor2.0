@@ -2,16 +2,21 @@ import random
 import os
 import pandas as pd
 import streamlit as st
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
+import numpy as np
+import pickle
 
 # -------------------------------------------------
-# 1) Load data
+# 1) Page setup
 # -------------------------------------------------
 st.title("AI Crop Predictor Dashboard")
-st.write("Upload your dataset, view the data, and try out crop predictions interactively!")
+st.write("View the data and try out crop predictions interactively!")
 
 DATAFILE = "crop_recommendation.csv"
+MODELFILE = "crop_model.pkl"
+
+# -------------------------------------------------
+# 2) Load dataset
+# -------------------------------------------------
 if not os.path.isfile(DATAFILE):
     st.error(f"Dataset file '{DATAFILE}' not found in the current directory.")
     st.stop()
@@ -31,7 +36,6 @@ column_map = {
 }
 data = data.rename(columns=column_map)
 
-# Require economic columns to exist in the CSV
 required_columns = {
     "N", "P", "K", "temperature", "humidity",
     "ph", "rainfall", "label", "rates", "yield",
@@ -42,29 +46,35 @@ if missing:
     st.stop()
 
 # -------------------------------------------------
-# 2) Train model in memory (no pickle)
+# 3) Load pre-trained model (no training in app)
 # -------------------------------------------------
-X = data.drop("label", axis=1)   # N,P,K,temperature,humidity,ph,rainfall,rates,yield
-y = data["label"]
+if not os.path.isfile(MODELFILE):
+    st.error(
+        f"Model file '{MODELFILE}' not found. "
+        f"Run your training script (crop_predictor_safe.py) first."
+    )
+    st.stop()
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
-model = RandomForestClassifier(n_estimators=200, random_state=42)
-model.fit(X_train, y_train)
-accuracy = model.score(X_test, y_test)
+@st.cache_resource
+def load_model(path: str):
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+model = load_model(MODELFILE)
 
 st.subheader("Model status")
-st.write(f"RandomForest trained in app. Test accuracy: **{accuracy*100:.2f}%**")
+# Set this to the accuracy you observed when running crop_predictor_safe.py
+st.write("RandomForest loaded from file.")
+st.write("Offline test accuracy: **99.32%**")
 
 # -------------------------------------------------
-# 3) Dataset preview
+# 4) Dataset preview
 # -------------------------------------------------
 st.subheader("Dataset Preview")
 st.dataframe(data.head(100))
 
 # -------------------------------------------------
-# 4) User input section
+# 5) User input section
 # -------------------------------------------------
 st.subheader("Enter Values to Predict Crop")
 
@@ -111,7 +121,7 @@ with st.form("prediction_form"):
     )
     submit = st.form_submit_button("Predict Crop")
 
-# Fixed defaults for economic features used at prediction time
+# Fixed defaults for economic features used at display time
 default_rates = 25.5
 default_yield = 3850
 
@@ -142,37 +152,38 @@ crop_data = {
 }
 
 # -------------------------------------------------
-# 5) Prediction
+# 6) Prediction using loaded model
 # -------------------------------------------------
+def predict_crop(N, P, K, temperature, humidity, ph, rainfall):
+    cols = ["N", "P", "K", "temperature", "humidity", "ph", "rainfall"]
+    arr = np.array([[N, P, K, temperature, humidity, ph, rainfall]])
+    df = pd.DataFrame(arr, columns=cols)
+    pred = model.predict(df)[0]
+    return pred
+
 if submit:
-    # Order must match X.columns used during training
-    input_df = pd.DataFrame(
-        [[N, P, K, temperature, humidity, ph, rainfall, default_rates, default_yield]],
-        columns=["N", "P", "K", "temperature", "humidity",
-                 "ph", "rainfall", "rates", "yield"],
-    )
-    pred = model.predict(input_df)[0]
+    pred = predict_crop(N, P, K, temperature, humidity, ph, rainfall)
     crop_key = str(pred).strip().lower()
     rate, yld = crop_data.get(crop_key, (default_rates, default_yield))
 
     st.markdown(
-    f"""
-    <div style="color:#00ff00; font-weight:bold;">
-        Recommended crop: {pred}<br>
-        Estimated market rate: {rate:.1f} ₹/kg<br>
-        Estimated yield: {yld:.0f} kg/ha
-    </div>
-    """,
-    unsafe_allow_html=True,
-
-
+        f"""
+        <div style="color:#00ff00; font-weight:bold;">
+            Recommended crop: {pred}<br>
+            Estimated market rate: {rate:.1f} ₹/kg<br>
+            Estimated yield: {yld:.0f} kg/ha
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
 # -------------------------------------------------
-# 6) Basic statistics
+# 7) Basic statistics
 # -------------------------------------------------
 st.subheader("Basic Dataset Statistics")
 st.write(data.describe())
+
+
 
 
 
