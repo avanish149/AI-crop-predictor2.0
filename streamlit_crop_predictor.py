@@ -155,10 +155,17 @@ if submit:
     crop_key = str(pred).strip().lower()
     rate, yld = crop_data.get(crop_key, (default_rates, default_yield))
 
-    st.success(
-        f"Recommended crop: {pred}\n"
-        f"Estimated market rate: {rate:.1f} ₹/kg\n"
-        f"Estimated yield: {yld:.0f} kg/ha"
+    st.markdown(
+    f"""
+    <div style="color:#00ff00; font-weight:bold;">
+        Recommended crop: {pred}<br>
+        Estimated market rate: {rate:.1f} ₹/kg<br>
+        Estimated yield: {yld:.0f} kg/ha
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
     )
 
 # -------------------------------------------------
@@ -166,6 +173,7 @@ if submit:
 # -------------------------------------------------
 st.subheader("Basic Dataset Statistics")
 st.write(data.describe())
+
 
 
 
