@@ -1,0 +1,1 @@
+AI-powered crop prediction system using RandomForest. Includes preprocessing, training scripts, and an interactive Streamlit dashboard for exploring data and making predictions based on soil and environmental parameters. Ideal for smart farming prototypes and data enthusiasts.
