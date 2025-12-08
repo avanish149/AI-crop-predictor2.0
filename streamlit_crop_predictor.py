@@ -155,11 +155,17 @@ crop_data = {
 # 6) Prediction using loaded model
 # -------------------------------------------------
 def predict_crop(N, P, K, temperature, humidity, ph, rainfall):
-    cols = ["N", "P", "K", "temperature", "humidity", "ph", "rainfall"]
-    arr = np.array([[N, P, K, temperature, humidity, ph, rainfall]])
+    # Use same feature order as during training
+    default_rates = 25.5
+    default_yield = 3850.0
+    cols = ["N", "P", "K", "temperature", "humidity", "ph",
+            "rainfall", "rates", "yield"]
+    arr = [[N, P, K, temperature, humidity, ph,
+            rainfall, default_rates, default_yield]]
     df = pd.DataFrame(arr, columns=cols)
     pred = model.predict(df)[0]
     return pred
+
 
 if submit:
     pred = predict_crop(N, P, K, temperature, humidity, ph, rainfall)
@@ -182,6 +188,7 @@ if submit:
 # -------------------------------------------------
 st.subheader("Basic Dataset Statistics")
 st.write(data.describe())
+
 
 
 
