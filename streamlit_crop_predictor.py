@@ -126,7 +126,7 @@ with st.form("prediction_form"):
     )
     submit = st.form_submit_button("Predict Crop")
 
-# Fixed defaults for economic features used at display time
+# Fixed defaults for display only
 default_rates = 25.5
 default_yield = 3850
 
@@ -157,23 +157,13 @@ crop_data = {
 }
 
 # -------------------------------------------------
-# 6) Prediction using loaded model - FIXED COLUMN ORDER
+# 6) Prediction using loaded 7-feature model
 # -------------------------------------------------
 def predict_crop(N, P, K, temperature, humidity, ph, rainfall):
-    # EXACT training column order: yield BEFORE rates
-    default_yield = 3850.0
-    default_rates = 25.5
-    cols = ["N", "P", "K", "temperature", "humidity", "ph", 
-            "rainfall", "yield", "rates"]  # ← CORRECT ORDER
-    arr = [[N, P, K, temperature, humidity, ph, 
-            rainfall, default_yield, default_rates]]  # ← MATCHES cols
-    df = pd.DataFrame(arr, columns=cols)
-    
-    # Debug info (remove after testing)
-    st.write("**Debug - Input to model:**")
-    st.write("Shape:", df.shape)
-    st.write("Columns:", df.columns.tolist())
-    
+    # Must match X_cls used when training clf in crop_predictor_safe.py
+    cols = ["N", "P", "K", "temperature", "humidity", "ph", "rainfall"]
+    df = pd.DataFrame([[N, P, K, temperature, humidity, ph, rainfall]],
+                      columns=cols)
     pred = model.predict(df)[0]
     return pred
 
@@ -198,15 +188,3 @@ if submit:
 # -------------------------------------------------
 st.subheader("Basic Dataset Statistics")
 st.write(data.describe())
-
-
-
-
-
-
-
-
-
-
-
-
