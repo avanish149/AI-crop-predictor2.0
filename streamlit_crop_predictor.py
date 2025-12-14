@@ -11,7 +11,7 @@ st.write("Upload your dataset, view the data, and try out crop predictions inter
 # ---------------------------
 # 1) Load data
 # ---------------------------
-DATAFILE = "cr  op_recommendation.csv"
+DATAFILE = "crop_recommendation.csv"
 if not os.path.isfile(DATAFILE):
     st.error(f"Dataset file '{DATAFILE}' not found in the current directory.")
     st.stop()
@@ -125,4 +125,5 @@ else:
 # ---------------------------
 st.subheader("Basic Dataset Statistics")
 st.write(data.describe())
+
 
