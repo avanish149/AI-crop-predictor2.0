@@ -17,7 +17,6 @@ st.write(
     "crop along with an estimated market rate and expected yield."
 )
 
-
 DATAFILE = "crop_recommendation.csv"
 MODELFILE = "crop_model.pkl"
 
@@ -70,7 +69,6 @@ def load_model(path: str):
 model = load_model(MODELFILE)
 
 st.subheader("Model status")
-# Set this to the accuracy you observed when running crop_predictor_safe.py
 st.write("RandomForest loaded from file.")
 st.write("Offline test accuracy: **99.32%**")
 
@@ -159,20 +157,25 @@ crop_data = {
 }
 
 # -------------------------------------------------
-# 6) Prediction using loaded model
+# 6) Prediction using loaded model - FIXED COLUMN ORDER
 # -------------------------------------------------
 def predict_crop(N, P, K, temperature, humidity, ph, rainfall):
-    # Use same feature order as during training
-    default_rates = 25.5
+    # EXACT training column order: yield BEFORE rates
     default_yield = 3850.0
-    cols = ["N", "P", "K", "temperature", "humidity", "ph",
-            "rainfall", "rates", "yield"]
-    arr = [[N, P, K, temperature, humidity, ph,
-            rainfall, default_rates, default_yield]]
+    default_rates = 25.5
+    cols = ["N", "P", "K", "temperature", "humidity", "ph", 
+            "rainfall", "yield", "rates"]  # ← CORRECT ORDER
+    arr = [[N, P, K, temperature, humidity, ph, 
+            rainfall, default_yield, default_rates]]  # ← MATCHES cols
     df = pd.DataFrame(arr, columns=cols)
+    
+    # Debug info (remove after testing)
+    st.write("**Debug - Input to model:**")
+    st.write("Shape:", df.shape)
+    st.write("Columns:", df.columns.tolist())
+    
     pred = model.predict(df)[0]
     return pred
-
 
 if submit:
     pred = predict_crop(N, P, K, temperature, humidity, ph, rainfall)
@@ -181,10 +184,10 @@ if submit:
 
     st.markdown(
         f"""
-        <div style="color:#00ff00; font-weight:bold;">
-            Recommended crop: {pred}<br>
-            Estimated market rate: {rate:.1f} ₹/kg<br>
-            Estimated yield: {yld:.0f} kg/ha
+        <div style="color:#00ff00; font-weight:bold; font-size:20px;">
+            Recommended crop: **{pred}**<br><br>
+            Estimated market rate: **{rate:.1f} ₹/kg**<br><br>
+            Estimated yield: **{yld:.0f} kg/ha**
         </div>
         """,
         unsafe_allow_html=True,
@@ -195,6 +198,8 @@ if submit:
 # -------------------------------------------------
 st.subheader("Basic Dataset Statistics")
 st.write(data.describe())
+
+
 
 
 
