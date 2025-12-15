@@ -20,9 +20,6 @@ st.write(
 DATAFILE = "crop_recommendation.csv"
 MODELFILE = "crop_model.pkl"
 
-# FIXED: Exact 7-feature columns (no rates/yield in model input)
-FEATURE_COLS = ["N", "P", "K", "temperature", "humidity", "ph", "rainfall"]
-
 # -------------------------------------------------
 # 2) Load dataset
 # -------------------------------------------------
@@ -35,7 +32,7 @@ data = pd.read_csv(DATAFILE)
 # Standardize column names
 column_map = {
     "Nitrogen": "N",
-    "Phosphorus": "P", 
+    "Phosphorus": "P",
     "Potassium": "K",
     "Temperature": "temperature",
     "Humidity": "humidity",
@@ -45,8 +42,13 @@ column_map = {
 }
 data = data.rename(columns=column_map)
 
-# FIXED: Only require model features + label (rates/yield optional for display)
-required_columns = set(FEATURE_COLS) | {"label"}
+# For the 9‑feature model, these are the training columns
+MODEL_FEATURES = [
+    "N", "P", "K", "temperature", "humidity",
+    "ph", "rainfall", "yield", "rates"
+]
+
+required_columns = set(MODEL_FEATURES + ["label"])
 missing = required_columns - set(data.columns)
 if missing:
     st.error(f"Dataset is missing columns: {missing}")
@@ -70,15 +72,20 @@ def load_model(path: str):
 model = load_model(MODELFILE)
 
 st.subheader("Model status")
-st.success("✅ RandomForest loaded from file.")
-st.info("**Offline test accuracy: 99.32%**")
-st.caption(f"Expected features: {model.feature_names_in_.tolist()}")
+st.write("RandomForest loaded from file.")
+st.write("Offline test accuracy: **99.32%**")
+
+# Optional debug: see what the model expects
+st.caption(f"Model feature_names_in_: {getattr(model, 'feature_names_in_', None)}")
 
 # -------------------------------------------------
 # 4) Dataset preview
 # -------------------------------------------------
 st.subheader("Dataset Preview")
-st.dataframe(data[FEATURE_COLS + ['label']].head(100), use_container_width=True)
+preview_cols = [c for c in ["N", "P", "K", "temperature", "humidity",
+                            "ph", "rainfall", "yield", "rates", "label"]
+                if c in data.columns]
+st.dataframe(data[preview_cols].head(100), use_container_width=True)
 
 # -------------------------------------------------
 # 5) User input section
@@ -87,13 +94,13 @@ st.subheader("Enter Values to Predict Crop")
 
 if "rand_values" not in st.session_state:
     st.session_state["rand_values"] = {
-        "N": 90,  # Rice defaults for testing
+        "N": 90,
         "P": 42,
         "K": 43,
         "temperature": 20.88,
-        "humidity": 82.02,
+        "humidity": 82.00,
         "ph": 6.5,
-        "rainfall": 202.93,
+        "rainfall": 202.94,
     }
 
 def randomize_inputs():
@@ -107,7 +114,7 @@ def randomize_inputs():
         "rainfall": round(random.uniform(0, 400), 2),
     }
 
-if st.button("🎲 Randomize Inputs"):
+if st.button("Randomize Inputs"):
     randomize_inputs()
     st.rerun()
 
@@ -127,9 +134,13 @@ with st.form("prediction_form"):
     rainfall = st.number_input(
         "Rainfall (mm)", 0.0, 400.0, st.session_state["rand_values"]["rainfall"]
     )
-    submit = st.form_submit_button("🔮 Predict Crop", use_container_width=True)
+    submit = st.form_submit_button("Predict Crop")
 
-# Your existing crop lookup (unchanged)
+# Fixed defaults for economic features used at display time
+default_rates = 25.5
+default_yield = 3850.0
+
+# Mapping crop -> (rate, yield)
 crop_data = {
     "rice":        (25.5, 3850),
     "maize":       (18.2, 4200),
@@ -156,79 +167,52 @@ crop_data = {
 }
 
 # -------------------------------------------------
-# FIXED: Prediction using ONLY 7 model features
+# 6) Prediction using loaded 9‑feature model
 # -------------------------------------------------
 def predict_crop(N, P, K, temperature, humidity, ph, rainfall):
-    # EXACT training format - 7 features only
-    input_df = pd.DataFrame([
-        [N, P, K, temperature, humidity, ph, rainfall]
-    ], columns=FEATURE_COLS)
-    
+    # EXACT same order and names as during training
+    cols = ["N", "P", "K", "temperature", "humidity",
+            "ph", "rainfall", "yield", "rates"]
+    arr = [[
+        N, P, K, temperature, humidity,
+        ph, rainfall, default_yield, default_rates
+    ]]
+    input_df = pd.DataFrame(arr, columns=cols)
+
+    # Debug – check what we're sending
+    with st.expander("Debug – input sent to model", expanded=False):
+        st.write(input_df)
+        st.write("Columns:", list(input_df.columns))
+
     pred = model.predict(input_df)[0]
     prob = model.predict_proba(input_df)[0]
-    confidence = max(prob) * 100
-    
+    confidence = float(np.max(prob) * 100.0)
     return pred, confidence
 
-# -------------------------------------------------
-# 6) Results display
-# -------------------------------------------------
 if submit:
-    with st.spinner("Predicting..."):
-        pred, confidence = predict_crop(N, P, K, temperature, humidity, ph, rainfall)
-        
-        # Debug info (remove after testing)
-        with st.expander("🔍 Debug Info"):
-            st.write("**Input sent to model:**")
-            input_df = pd.DataFrame([
-                [N, P, K, temperature, humidity, ph, rainfall]
-            ], columns=FEATURE_COLS)
-            st.dataframe(input_df)
-            st.write(f"**Model expects:** {model.feature_names_in_.tolist()}")
-        
-        crop_key = str(pred).strip().lower()
-        rate, yld = crop_data.get(crop_key, (25.5, 3850))
-        
-        # Results layout
-        col1, col2, col3 = st.columns([2, 1, 1])
-        with col1:
-            st.markdown(f"""
-            <div style="color:#10b981; font-size:2rem; font-weight:bold;">
-                {pred}
-            </div>
-            """, unsafe_allow_html=True)
-        with col2:
-            st.metric("Confidence", f"{confidence:.1f}%")
-        with col3:
-            st.metric("Rate", f"₹{rate:.1f}/kg")
-        
-        st.markdown(f"""
-        **Estimated yield:** {yld:.0f} kg/ha  
-        **Optimal for:** N:{N:.0f}, P:{P:.0f}, K:{K:.0f} | {temperature:.1f}°C, {humidity:.1f}% humidity
-        """)
+    pred, confidence = predict_crop(N, P, K, temperature, humidity, ph, rainfall)
+    crop_key = str(pred).strip().lower()
+    rate, yld = crop_data.get(crop_key, (default_rates, default_yield))
+
+    st.markdown(
+        f"""
+        <div style="color:#00ff00; font-weight:bold;">
+            Recommended crop: {pred}<br>
+            Estimated market rate: {rate:.1f} ₹/kg<br>
+            Estimated yield: {yld:.0f} kg/ha<br>
+            Confidence: {confidence:.1f}%
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # -------------------------------------------------
 # 7) Basic statistics
 # -------------------------------------------------
-st.subheader("📊 Dataset Statistics")
-col1, col2 = st.columns(2)
-with col1:
-    st.metric("Total Samples", len(data))
-    st.metric("Crop Types", data['label'].nunique())
-with col2:
-    st.metric("Avg N", f"{data['N'].mean():.1f}")
-    st.metric("Avg Rainfall", f"{data['rainfall'].mean():.1f} mm")
+st.subheader("Basic Dataset Statistics")
+st.write(data[preview_cols].describe())
 
-st.write(data[FEATURE_COLS + ['label']].describe())
 
-# Instructions
-with st.expander("🚀 Quick Start"):
-    st.markdown("""
-    **1. Train model:** `python crop_predictor_safe.py`  
-    **2. Run app:** `streamlit run streamlit_crop_predictor.py`  
-    **3. Test with Rice:** N=90, P=42, K=43, temp=20.9, hum=82, pH=6.5, rain=203  
-    **Expected:** "rice" with 99%+ confidence
-    """)
 
 
 
